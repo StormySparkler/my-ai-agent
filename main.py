@@ -17,7 +17,10 @@ client = OpenAI(
 def main():
     parser = argparse.ArgumentParser(description="Chatbot")
     parser.add_argument("user_prompt", type=str, help="User prompt")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+
     args = parser.parse_args()
+
     messages = [
     {"role": "user", "content": args.user_prompt},
 ]
@@ -27,12 +30,15 @@ def main():
 )
     if not response.usage:
         raise RuntimeError("Usage data not found in response")
-    X = response.usage.prompt_tokens
-    Y = response.usage.completion_tokens
+    prompt_tokens = response.usage.prompt_tokens
+    response_tokens = response.usage.completion_tokens
 
-    print(f"Prompt tokens: {X}")
-    print(f"Response tokens: {Y}")
-    print("Ressponse:")
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}")
+        print(f"Prompt tokens: {prompt_tokens}")
+        print(f"Response tokens: {response_tokens}")
+
+    print("Response:")
     print(response.choices[0].message.content)
 
 
