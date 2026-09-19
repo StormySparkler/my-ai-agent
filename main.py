@@ -1,6 +1,4 @@
-import os
-import argparse
-import json
+import os, argparse, json, sys
 from prompts import system_prompt
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -30,34 +28,46 @@ def main():
     {"role": "system", "content": system_prompt},
     {"role": "user", "content": args.user_prompt},
 ]
-    response = client.chat.completions.create(
-    model="openrouter/free",
-    messages=messages,
-    tools=available_functions,
-)
-    if not response.usage:
-        raise RuntimeError("Usage data not found in response")
-    prompt_tokens = response.usage.prompt_tokens
-    response_tokens = response.usage.completion_tokens
+    answer = False
 
-    if args.verbose:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"Prompt tokens: {prompt_tokens}")
-        print(f"Response tokens: {response_tokens}")
+    for _ in range(20):
 
-    message = response.choices[0].message
+        response = client.chat.completions.create(
+        model="openrouter/free",
+        messages=messages,
+        tools=available_functions,
+    )
+        if not response.usage:
+            raise RuntimeError("Usage data not found in response")
+        prompt_tokens = response.usage.prompt_tokens
+        response_tokens = response.usage.completion_tokens
 
-    if not message.tool_calls:
-        print("Response:")
-        print(response.choices[0].message.content)
+        if args.verbose:
+            print(f"User prompt: {args.user_prompt}")
+            print(f"Prompt tokens: {prompt_tokens}")
+            print(f"Response tokens: {response_tokens}")
 
-    else:
-        for tool_call in message.tool_calls:
-            result_message = call_function(tool_call, args.verbose)
-            if not result_message["content"]:
-                raise Exception("Error: Function call produced no content")
-            if args.verbose:
-                print(f"-> {result_message['content']}")
+        message = response.choices[0].message
+        messages.append(message)
+
+        if not message.tool_calls:
+            answer = True
+            print("Response:")
+            print(response.choices[0].message.content)
+            break
+
+        else:
+            for tool_call in message.tool_calls:
+                result_message = call_function(tool_call, args.verbose)
+                messages.append(result_message)
+                if not result_message["content"]:
+                    raise Exception("Error: Function call produced no content")
+                if args.verbose:
+                    print(f"-> {result_message['content']}")
+
+    if not answer:
+        print(("Timed out after 20 tries"))
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
